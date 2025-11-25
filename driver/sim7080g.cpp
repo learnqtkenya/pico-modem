@@ -47,7 +47,7 @@ bool Sim7080G::boot_modem() {
             printf("Toggling power...\n");
             toggle_module_power();
             powered = true;
-            // Wait 30s for modem to boot before first AT command
+            // Wait 35s for modem to boot before first AT command
             printf("Waiting 35s for modem boot...\n");
             sleep_ms(35000);
         }
@@ -84,7 +84,6 @@ bool Sim7080G::check_sim() {
     printf("\n=== Checking SIM ===\n");
 
     string response = send_at_response("AT+CPIN?", 1000);
-    print_response(response);
 
     if (response.find("READY") != string::npos) {
         printf("SIM: READY\n");
@@ -103,38 +102,38 @@ void Sim7080G::get_sim_info() {
     printf("\n=== SIM Info ===\n");
 
     printf("\nICCID:\n");
-    print_response(send_at_response("AT+CCID", 1000));
+    send_at_response("AT+CCID", 1000);
 
     printf("\nIMSI:\n");
-    print_response(send_at_response("AT+CIMI", 1000));
+    send_at_response("AT+CIMI", 1000);
 
     printf("\nPhone Number:\n");
-    print_response(send_at_response("AT+CNUM", 1000));
+    send_at_response("AT+CNUM", 1000);
 
     printf("\nOperator:\n");
-    print_response(send_at_response("AT+COPS?", 2000));
+    send_at_response("AT+COPS?", 2000);
 
     printf("\nSignal:\n");
-    print_response(send_at_response("AT+CSQ", 1000));
+    send_at_response("AT+CSQ", 1000);
 
     printf("\nRegistration:\n");
-    print_response(send_at_response("AT+CREG?", 1000));
+    send_at_response("AT+CREG?", 1000);
 }
 
 void Sim7080G::get_modem_info() {
     printf("\n=== Modem Info ===\n");
 
     printf("\nManufacturer:\n");
-    print_response(send_at_response("AT+CGMI", 1000));
+    send_at_response("AT+CGMI", 1000);
 
     printf("\nModel:\n");
-    print_response(send_at_response("AT+CGMM", 1000));
+    send_at_response("AT+CGMM", 1000);
 
     printf("\nFirmware:\n");
-    print_response(send_at_response("AT+CGMR", 1000));
+    send_at_response("AT+CGMR", 1000);
 
     printf("\nIMEI:\n");
-    print_response(send_at_response("AT+CGSN", 1000));
+    send_at_response("AT+CGSN", 1000);
 }
 
 bool Sim7080G::send_at(string cmd, string expected, uint32_t timeout) {
@@ -145,7 +144,6 @@ bool Sim7080G::send_at(string cmd, string expected, uint32_t timeout) {
 string Sim7080G::send_at_response(string cmd, uint32_t timeout) {
     const string data_out = cmd + "\r\n";
     uart_puts(MODEM_UART, data_out.c_str());
-    printf("[TX] %s\n", cmd.c_str());
 
     read_buffer(timeout);
 
@@ -207,30 +205,4 @@ void Sim7080G::clear_buffer() {
 string Sim7080G::buffer_to_string() {
     string new_string(uart_buffer, rx_ptr);
     return new_string;
-}
-
-void Sim7080G::print_response(string msg) {
-    size_t start = 0;
-    size_t end = 0;
-
-    while ((end = msg.find('\n', start)) != string::npos) {
-        string line = msg.substr(start, end - start);
-        if (!line.empty() && line[line.length() - 1] == '\r') {
-            line = line.substr(0, line.length() - 1);
-        }
-        if (!line.empty()) {
-            printf("  %s\n", line.c_str());
-        }
-        start = end + 1;
-    }
-
-    if (start < msg.length()) {
-        string line = msg.substr(start);
-        if (!line.empty() && line[line.length() - 1] == '\r') {
-            line = line.substr(0, line.length() - 1);
-        }
-        if (!line.empty()) {
-            printf("  %s\n", line.c_str());
-        }
-    }
 }

@@ -24,7 +24,6 @@ class Sim7080G {
         void        read_buffer(uint32_t timeout = 5000);
         void        clear_buffer();
         string      buffer_to_string();
-        void        print_response(string msg);
         uint8_t     uart_buffer[UART_BUFFER_SIZE];
         uint8_t     *rx_ptr;
 };
