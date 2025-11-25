@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.12)
 # Pull in SDK (must be before project)
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 
-project(pi_modem C CXX ASM)
+project(pico-modem C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -21,23 +21,23 @@ endif()
 # Initialize the SDK
 pico_sdk_init()
 
-add_executable(pi_modem
+add_executable(pico-modem
     main.cpp
     driver/sim7080g.cpp
     )
 
-target_include_directories(pi_modem PRIVATE
+target_include_directories(pico-modem PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/driver
     )
 
-target_link_libraries(pi_modem
+target_link_libraries(pico-modem
     pico_stdlib
     hardware_uart
     hardware_gpio
     )
 
-pico_enable_stdio_usb(pi_modem 1)
-pico_enable_stdio_uart(pi_modem 0)
+pico_enable_stdio_usb(pico-modem 1)
+pico_enable_stdio_uart(pico-modem 0)
 
-pico_add_extra_outputs(pi_modem)
+pico_add_extra_outputs(pico-modem)

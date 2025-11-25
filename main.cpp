@@ -6,17 +6,11 @@
 #include "driver/sim7080g.h"
 
 void uart_init_modem() {
-    printf("Initializing modem UART...\n");
-    printf("  UART: uart%d\n", uart_get_index(MODEM_UART));
-    printf("  Baud: 115200\n");
-    printf("  TX Pin: GPIO %d\n", PIN_UART_TX);
-    printf("  RX Pin: GPIO %d\n", PIN_UART_RX);
-
     uart_init(MODEM_UART, 115200);
     gpio_set_function(PIN_UART_TX, GPIO_FUNC_UART);
     gpio_set_function(PIN_UART_RX, GPIO_FUNC_UART);
-    uart_set_format(MODEM_UART, 8, 1, UART_PARITY_NONE);
-    uart_set_fifo_enabled(MODEM_UART, true);
+    // Switch off flow control -- not used
+    uart_set_hw_flow(MODEM_UART, false, false);
 
     printf("  UART initialized successfully\n\n");
 }
@@ -29,27 +23,35 @@ void led_blink(int times, int delay_ms) {
         sleep_ms(delay_ms);
     }
 }
-
-int main() {
-    stdio_init_all();
-    sleep_ms(2000);
-
-    printf("\n=== Pi Modem - SIM7080G ===\n");
-    printf("Build: %s %s\n\n", __DATE__, __TIME__);
-
+void setup_led() {
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
     gpio_put(LED_PIN, false);
+}
 
+void setup_modem_power_pin() {
     gpio_init(PIN_MODEM_PWR);
     gpio_set_dir(PIN_MODEM_PWR, GPIO_OUT);
     gpio_put(PIN_MODEM_PWR, false);
+}
 
+Sim7080G modem;
+
+void setup(){
+    setup_led();
     uart_init_modem();
+    setup_modem_power_pin();
+}
+int main() {
+    stdio_init_all();
 
+    // Set up the hardware
+    setup();
+
+    printf("\n=== Pi Modem - SIM7080G ===\n");
+    printf("Build: %s %s\n\n", __DATE__, __TIME__);
+    
     led_blink(3, 150);
-
-    Sim7080G modem;
 
     if (!modem.start_modem()) {
         printf("\nERROR: Modem failed to start\n");

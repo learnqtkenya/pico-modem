@@ -10,6 +10,7 @@
 #define PIN_MODEM_PWR           2
 #define LED_PIN                 23
 
+#define NETWORK_APN   "safaricom"
 // Buffer Configuration
 #define UART_BUFFER_SIZE        1024
 

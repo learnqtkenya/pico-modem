@@ -18,7 +18,9 @@ class Sim7080G {
 
     private:
         bool        boot_modem();
+        void        config_modem();
         void        toggle_module_power();
+        void        debug_output(string msg);
         void        read_buffer(uint32_t timeout = 5000);
         void        clear_buffer();
         string      buffer_to_string();

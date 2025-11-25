@@ -14,19 +14,19 @@ bool Sim7080G::start_modem() {
     printf("\n=== Starting Modem ===\n");
 
     if (boot_modem()) {
+        config_modem();
         printf("Modem ready\n");
-        send_at("ATE1");
-        send_at("AT+CMEE=2");
         return true;
+    } else {
+        printf("ERROR: Modem boot failed\n");
+        for (int i = 0; i < 6; i++) {
+            gpio_put(LED_PIN, true);
+            sleep_ms(100);
+            gpio_put(LED_PIN, false);
+            sleep_ms(100);
+        }        
     }
 
-    printf("ERROR: Modem boot failed\n");
-    for (int i = 0; i < 6; i++) {
-        gpio_put(LED_PIN, true);
-        sleep_ms(100);
-        gpio_put(LED_PIN, false);
-        sleep_ms(100);
-    }
     return false;
 }
 
@@ -36,34 +36,43 @@ bool Sim7080G::boot_modem() {
     uint32_t start_time = time_us_32();
 
     while (attempts < 20) {
+        if (send_at("ATE1")) {
+            // #ifdef DEBUG
+            printf("Modem ready after %i ms\n", (time_us_32() - start_time) / 1000);
+            // #endif
+
+            return true;
+        }
         if (!powered) {
             printf("Toggling power...\n");
             toggle_module_power();
             powered = true;
             // Wait 30s for modem to boot before first AT command
-            printf("Waiting 30s for modem boot...\n");
+            printf("Waiting 35s for modem boot...\n");
             sleep_ms(35000);
         }
-
-        printf("Sending AT (attempt %u)...\n", attempts + 1);
-        string response = send_at_response("AT", 1000);
-
-        if (response.find("OK") != string::npos) {
-            uint32_t boot_time = (time_us_32() - start_time) / 1000;
-            printf("Modem responded:\n");
-            print_response(response);
-            printf("Modem ready after %u ms (%u attempts)\n", boot_time, attempts + 1);
-            return true;
-        } else {
-            printf("No response or error: %s\n", response.c_str());
-        }
-
+        
         sleep_ms(4000);
         attempts++;
     }
 
     return false;
 }
+
+void Sim7080G::config_modem() {
+    // Set error reporting to 2, set modem to text mode, delete left-over SMS,
+    // select LTE-only mode, select Cat-M only mode, set the APN
+    char cmd[128];
+    snprintf(cmd, sizeof(cmd), "AT+CMEE=2;+CMGF=1;+CMGD=,4;+CNMP=38;+CMNB=1;+CGDCONT=1,\"IP\",\"%s\"", NETWORK_APN);
+    send_at(cmd);
+
+    // Set SST version, set SSL no verify, set header config
+    send_at("AT+CSSLCFG=\"sslversion\",1,3;+SHSSL=1,\"\";+SHCONF=\"BODYLEN\",1024;+SHCONF=\"HEADERLEN\",350");
+
+    #ifdef DEBUG
+    printf("Modem configured for Cat-M and Super SIM\n");
+    #endif
+} 
 
 void Sim7080G::toggle_module_power() {
     gpio_put(PIN_MODEM_PWR, true);
@@ -140,20 +149,8 @@ string Sim7080G::send_at_response(string cmd, uint32_t timeout) {
 
     read_buffer(timeout);
 
-    size_t bytes_read = rx_ptr - &uart_buffer[0];
-    printf("[RX] Read %u bytes\n", bytes_read);
-
-    if (bytes_read > 0) {
-        // Debug: print raw bytes
-        printf("[RX] Raw: ");
-        for (size_t i = 0; i < bytes_read && i < 50; i++) {
-            if (uart_buffer[i] >= 32 && uart_buffer[i] < 127) {
-                printf("%c", uart_buffer[i]);
-            } else {
-                printf("[0x%02X]", uart_buffer[i]);
-            }
-        }
-        printf("\n");
+    // Return response as string
+    if (rx_ptr > &uart_buffer[0]) {
         return buffer_to_string();
     }
     return "ERROR";
@@ -172,7 +169,34 @@ void Sim7080G::read_buffer(uint32_t timeout) {
             rx_ptr++;
         }
     }
+    debug_output(buffer_to_string());
 }
+
+void Sim7080G::debug_output(string msg) {
+    size_t start = 0;
+    size_t end = 0;
+
+    while ((end = msg.find('\n', start)) != string::npos) {
+        string line = msg.substr(start, end - start);
+        if (!line.empty() && line[line.length() - 1] == '\r') {
+            line = line.substr(0, line.length() - 1);
+        }
+        if (!line.empty()) {
+            printf(">>> %s\n", line.c_str());
+        }
+        start = end + 1;
+    }
+
+    if (start < msg.length()) {
+        string line = msg.substr(start);
+        if (!line.empty() && line[line.length() - 1] == '\r') {
+            line = line.substr(0, line.length() - 1);
+        }
+        if (!line.empty()) {
+            printf(">>> %s\n", line.c_str());
+        }
+    }
+} 
 
 void Sim7080G::clear_buffer() {
     for (uint32_t i = 0; i < UART_BUFFER_SIZE; i++) {
@@ -181,9 +205,8 @@ void Sim7080G::clear_buffer() {
 }
 
 string Sim7080G::buffer_to_string() {
-    size_t len = rx_ptr - uart_buffer;
-    string result((char*)uart_buffer, len);
-    return result;
+    string new_string(uart_buffer, rx_ptr);
+    return new_string;
 }
 
 void Sim7080G::print_response(string msg) {
