@@ -65,13 +65,16 @@ void Sim7080G::config_modem() {
     printf("\n===== Configuring Modem =====\n");
     
     char cmd[128];
-    snprintf(cmd, sizeof(cmd), "AT+CMEE=2;+CMGF=1;+CMGD=,4;+CNMP=38;+CMNB=1;+CGDCONT=1,\"IP\",\"%s\"", NETWORK_APN);
+    snprintf(cmd, sizeof(cmd), "AT+CMEE=2;+CMGF=1;+CMGD=,4;+CNMP=38;+CMNB=2;+CGDCONT=1,\"IP\",\"%s\"", NETWORK_APN);
     send_at(cmd);
+
+    // Enable automatic operator selection and network registration
+    send_at("AT+COPS=0;+CREG=1");
 
     // Set SST version, set SSL no verify, set header config
     send_at("AT+CSSLCFG=\"sslversion\",1,3;+SHSSL=1,\"\";+SHCONF=\"BODYLEN\",1024;+SHCONF=\"HEADERLEN\",350");
 
-    printf("Modem configured for Cat-M and the APN set to \"%s\"\n", NETWORK_APN);
+    printf("Modem configured for NB-IoT and the APN set to \"%s\"\n", NETWORK_APN);
 } 
 
 void Sim7080G::toggle_module_power() {
@@ -96,6 +99,38 @@ bool Sim7080G::check_sim() {
         printf("SIM: NOT DETECTED\n");
     }
     return false;
+}
+
+void Sim7080G::wait_for_registration() {
+    printf("\n===== Waiting for Network Registration =====\n");
+
+    uint32_t attempt = 0;
+
+    while (true) {
+        attempt++;
+        printf("Registration attempt %u...\n", attempt);
+
+        string response = send_at_response("AT+CREG?", 2000);
+
+        // Check for registered on home network (+CREG: 1,1) or roaming (+CREG: 1,5)
+        if (response.find("+CREG: 1,1") != string::npos) {
+            printf("Registered on home network\n");
+            break;
+        } else if (response.find("+CREG: 1,5") != string::npos) {
+            printf("Registered (roaming)\n");
+            break;
+        } else if (response.find("+CREG: 1,2") != string::npos) {
+            printf("Status: Searching for network...\n");
+        } else if (response.find("+CREG: 1,3") != string::npos) {
+            printf("Status: Registration denied\n");
+        } else if (response.find("+CREG: 1,0") != string::npos) {
+            printf("Status: Not registered, not searching\n");
+        }
+
+        sleep_ms(5000);
+    }
+
+    printf("Network registration successful\n");
 }
 
 void Sim7080G::get_sim_info() {

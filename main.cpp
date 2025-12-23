@@ -72,6 +72,8 @@ int main() {
         modem.get_sim_info();
         printf("\n===== SIM Ready =====\n\n");
 
+        modem.wait_for_registration();
+
         while (true) {
             led_blink(1, 100);
             sleep_ms(2000);

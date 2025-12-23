@@ -11,6 +11,7 @@ class Sim7080G {
         Sim7080G();
         bool        start_modem();
         bool        check_sim();
+        void        wait_for_registration();
         void        get_sim_info();
         void        get_modem_info();
         bool        send_at(string cmd, string expected = "OK", uint32_t timeout = 500);
